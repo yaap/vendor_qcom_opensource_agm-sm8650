@@ -27,6 +27,41 @@
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 
+/*
+** Changes from Qualcomm Innovation Center are provided under the following license:
+** Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+**
+** Redistribution and use in source and binary forms, with or without
+** modification, are permitted (subject to the limitations in the
+** disclaimer below) provided that the following conditions are met:
+**
+**    * Redistributions of source code must retain the above copyright
+**      notice, this list of conditions and the following disclaimer.
+**
+**    * Redistributions in binary form must reproduce the above
+**      copyright notice, this list of conditions and the following
+**      disclaimer in the documentation and/or other materials provided
+**      with the distribution.
+**
+**    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
+**      contributors may be used to endorse or promote products derived
+**      from this software without specific prior written permission.
+**
+** NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+** GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+** HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+** WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+** MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+** IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+** ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+** DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+** GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+** INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+** IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+** OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+**/
+
 #define LOG_TAG "agm_dbus_utils"
 
 #include <stdio.h>
@@ -84,6 +119,7 @@ static DBusHandlerResult server_message_handler(DBusConnection *connection,
                 return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
             } else {
                 method->cb_func(connection, message, interface->userdata);
+                return DBUS_HANDLER_RESULT_HANDLED;
             }
         }
     }
@@ -131,8 +167,11 @@ static void agm_free_dbus_watch_data(void *userdata) {
         watch_data->watch_id = 0;
     }
 
-    dbus_connection_unref(watch_data->conn);
-    free(watch_data);
+    if (watch_data->conn)
+        dbus_connection_unref(watch_data->conn);
+
+    if (watch_data)
+        free(watch_data);
 }
 
 static void agm_remove_dbus_watch_cb(DBusWatch *watch, void *userdata) {
@@ -443,22 +482,15 @@ int agm_dbus_remove_interface(agm_dbus_connection *conn,
         return -1;
 
     if ((interface = (agm_dbus_interface *)
-               g_hash_table_remove(object->interfaces, interface_path)) == NULL)
+               g_hash_table_lookup(object->interfaces, interface_path)) == NULL)
         return -1;
 
-    g_hash_table_remove_all(interface->methods);
-    g_hash_table_unref(interface->methods);
-
-    g_hash_table_remove_all(interface->signals);
-    g_hash_table_unref(interface->signals);
-
-    free(interface);
+    g_hash_table_remove(object->interfaces,interface_path);
     interface = NULL;
 
     if (g_hash_table_size(object->interfaces) == 0) {
         unregister_object(conn, object);
         g_hash_table_remove(conn->objects, (void *)object->obj_path);
-        free(object);
         object = NULL;
     }
 
@@ -496,10 +528,6 @@ int agm_dbus_add_interface(agm_dbus_connection *conn,
     if ((object = (agm_dbus_object *)
                    g_hash_table_lookup(conn->objects, dbus_obj_path)) == NULL) {
         object = (agm_dbus_object *)malloc(sizeof(agm_dbus_object));
-        if (object == NULL) {
-            AGM_LOGE("object is NULL\n");
-            goto object_malloc_failed;
-        }
         object->obj_path = dbus_obj_path;
         object->interfaces = g_hash_table_new_full(g_str_hash,
                                                    g_str_equal,
@@ -507,10 +535,6 @@ int agm_dbus_add_interface(agm_dbus_connection *conn,
                                                    agm_free_interface);
 
         interface = (agm_dbus_interface *)malloc(sizeof(agm_dbus_interface));
-        if (interface == NULL) {
-            AGM_LOGE("interface is NULL\n");
-            goto interface_malloc_failed;
-        }
         interface->name = interface_info->name;
         interface->methods = g_hash_table_new_full(g_str_hash,
                                                    g_str_equal,
@@ -519,10 +543,6 @@ int agm_dbus_add_interface(agm_dbus_connection *conn,
 
         for (i = 0; i < interface_info->method_count; i++) {
              method = (agm_dbus_method *)malloc(sizeof(agm_dbus_method));
-             if (method == NULL) {
-                AGM_LOGE("method is NULL\n");
-                goto method_malloc_failed;
-             }
              method->method_name = interface_info->methods[i].method_name;
              method->method_signature =
                                     interface_info->methods[i].method_signature;
@@ -538,10 +558,6 @@ int agm_dbus_add_interface(agm_dbus_connection *conn,
                                                    agm_free_signal);
         for (i = 0; i < interface_info->signal_count; i++) {
              signal = (agm_dbus_signal *)malloc(sizeof(agm_dbus_signal));
-             if (signal == NULL) {
-                AGM_LOGE("signal is NULL\n");
-                goto signal_malloc_failed;
-             }
              signal->method_name = interface_info->signals[i].method_name;
              signal->method_signature =
                                     interface_info->signals[i].method_signature;
@@ -571,10 +587,6 @@ int agm_dbus_add_interface(agm_dbus_connection *conn,
                                                interface_info->name)) == NULL) {
             interface = (agm_dbus_interface *)
                                     malloc(sizeof(agm_dbus_interface));
-            if (interface == NULL) {
-                AGM_LOGE("interface is NULL\n");
-                goto interface_malloc_failed;
-            }
             interface->name = interface_info->name;
             interface->signals = NULL;
             interface->methods = NULL;
@@ -586,10 +598,6 @@ int agm_dbus_add_interface(agm_dbus_connection *conn,
 
                 for (i = 0; i < interface_info->method_count; i++) {
                     method = (agm_dbus_method *)malloc(sizeof(agm_dbus_method));
-                    if (method == NULL) {
-                        AGM_LOGE("method is NULL\n");
-                        goto method_malloc_failed;
-                    }
                     method->method_name =
                                     interface_info->methods[i].method_name;
                     method->method_signature =
@@ -608,10 +616,6 @@ int agm_dbus_add_interface(agm_dbus_connection *conn,
                                                            agm_free_signal);
                 for (i = 0; i < interface_info->signal_count; i++) {
                     signal = (agm_dbus_signal *)malloc(sizeof(agm_dbus_signal));
-                    if (signal == NULL) {
-                        AGM_LOGE("signal is NULL\n");
-                        goto signal_malloc_failed;
-                    }
                     signal->method_name =
                                     interface_info->signals[i].method_name;
                     signal->method_signature =
@@ -631,21 +635,6 @@ int agm_dbus_add_interface(agm_dbus_connection *conn,
 
     dbus_error_free(&err);
     return 0;
-
-signal_malloc_failed:
-    free(method);
-    method = NULL;
-method_malloc_failed:
-    free(interface);
-    interface = NULL;
-interface_malloc_failed:
-    if (object) {
-        free(object);
-        object = NULL;
-    }
-object_malloc_failed:
-    dbus_error_free(&err);
-    return -EINVAL;
 }
 
 void agm_dbus_connection_free(agm_dbus_connection *conn) {
@@ -667,10 +656,6 @@ agm_dbus_connection *agm_dbus_new_connection() {
     agm_dbus_connection *conn = NULL;
 
     conn = (agm_dbus_connection *)malloc(sizeof(agm_dbus_connection));
-    if (conn == NULL) {
-        AGM_LOGE("conn is NULL\n");
-        return NULL;
-    }
     conn->objects = NULL;
 
     dbus_error_init(&err);
