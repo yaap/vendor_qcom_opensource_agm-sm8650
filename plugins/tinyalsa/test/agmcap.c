@@ -1,6 +1,6 @@
 /*
 ** Copyright (c) 2019, 2021, The Linux Foundation. All rights reserved.
-** Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+** Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
 **
 ** Copyright 2011, The Android Open Source Project
 **
@@ -217,6 +217,10 @@ int main(int argc, char **argv)
         fclose(file);
         return ret;
     }
+    if (config.format != PCM_FORMAT_INVALID) {
+        printf("Valid format from backend_conf %d\n", config.format);
+        config.bits = get_pcm_bit_width(config.format);
+    }
 
     header.bits_per_sample = pcm_format_to_bits(format);
     header.byte_rate = (header.bits_per_sample / 8) * channels * rate;
@@ -285,8 +289,7 @@ unsigned int capture_sample(FILE *file, unsigned int card, unsigned int device,
     }
 
     /* set device/audio_intf media config mixer control */
-    if (set_agm_device_media_config(mixer, dev_config->ch, dev_config->rate,
-                                    dev_config->bits, intf_name)) {
+    if (set_agm_device_media_config(mixer, intf_name, dev_config)) {
         printf("Failed to set device media config\n");
         goto err_close_mixer;
     }

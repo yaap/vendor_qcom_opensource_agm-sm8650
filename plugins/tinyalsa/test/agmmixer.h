@@ -1,6 +1,6 @@
 /*
 ** Copyright (c) 2019, The Linux Foundation. All rights reserved.
-** Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+** Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -51,6 +51,7 @@ struct device_config {
     unsigned int rate;
     unsigned int ch;
     unsigned int bits;
+    enum pcm_format format;
 };
 
 struct group_config {
@@ -59,6 +60,7 @@ struct group_config {
     unsigned int ch;
     unsigned int bits;
     unsigned int slot_mask;
+    enum pcm_format format;
 };
 
 typedef enum {
@@ -69,8 +71,8 @@ typedef enum {
 }slot_mask_t;
 
 int convert_char_to_hex(char *char_num);
-int set_agm_device_media_config(struct mixer *mixer, unsigned int channels,
-                                unsigned int rate, unsigned int bits, char *intf_name);
+int get_pcm_bit_width(enum pcm_format fmt_id);
+int set_agm_device_media_config(struct mixer *mixer, char *intf_name, struct device_config *config);
 int set_agm_group_device_config(struct mixer *mixer, char *intf_name, struct group_config *config);
 int set_agm_group_mux_config(struct mixer *mixer, unsigned int device, struct group_config *config, char *intf_name, unsigned int channels);
 int connect_play_pcm_to_cap_pcm(struct mixer *mixer, unsigned int p_device, unsigned int c_device);

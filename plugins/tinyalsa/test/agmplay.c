@@ -1,6 +1,6 @@
 /*
 ** Copyright (c) 2019, 2021, The Linux Foundation. All rights reserved.
-** Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+** Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
 **
 ** Copyright 2011, The Android Open Source Project
 **
@@ -309,12 +309,19 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
             printf("Invalid input, entry not found for : %s\n", intf_name[index]);
             fclose(file);
         }
-        printf("Backend %s rate ch bit : %d, %d, %d\n", intf_name[index],
-            dev_config[index].rate, dev_config[index].ch, dev_config[index].bits);
+        if (dev_config[index].format != PCM_FORMAT_INVALID) {
+            printf("Valid format from backend_conf %d\n", dev_config[index].format);
+            /* Updating bitwitdh based on format to avoid mismatch between bitwidth
+             * and format, as device bw will be used to configure MFC.
+             */
+            dev_config[index].bits = get_pcm_bit_width(dev_config[index].format);
+        }
+        printf("Backend %s rate ch bit fmt : %d, %d, %d %d\n", intf_name[index],
+            dev_config[index].rate, dev_config[index].ch, dev_config[index].bits,
+            dev_config[index].format);
 
         /* set device/audio_intf media config mixer control */
-        if (set_agm_device_media_config(mixer, dev_config[index].ch, dev_config[index].rate,
-                                    dev_config[index].bits, intf_name[index])) {
+        if (set_agm_device_media_config(mixer, intf_name[index], &dev_config[index])) {
             printf("Failed to set device media config\n");
             goto err_close_mixer;
         }

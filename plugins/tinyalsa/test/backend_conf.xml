@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <!-- Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.       -->
+<!-- Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.  -->
 <!--                                                                           -->
 <!-- Redistribution and use in source and binary forms, with or without        -->
 <!-- modification, are permitted provided that the following conditions are    -->
@@ -28,7 +29,10 @@
 <config>
     <group_device name="TDM-LPAIF-RX-TERTIARY" rate="96000" ch="3" bits="16" slot_mask="7"/>
     <device name="TDM-LPAIF-RX-TERTIARY-VIRT-0" rate="96000" ch="2" bits="16" />
-    <device name="CODEC_DMA-LPAIF_WSA-RX-0" rate="48000" ch="1" bits="16" />
+    <!-- Format support per backend is optional, we can provide pcm format to specify which format -->
+    <!-- BE should be configured to. If format is provided, and bitwidth does not match the format,-->
+    <!-- bitwidth will be overwritten based on format.                                             -->
+    <device name="CODEC_DMA-LPAIF_WSA-RX-0" rate="48000" ch="1" bits="16" format="PCM_FORMAT_S16_LE"/>
     <device name="CODEC_DMA-LPAIF_WSA-RX-1" rate="48000" ch="1" bits="16" />
     <device name="CODEC_DMA-LPAIF_RXTX-RX-0" rate="48000" ch="1" bits="16" />
     <device name="TDM-LPAIF_AXI-RX-PRIMARY" rate="48000" ch="2" bits="16" />

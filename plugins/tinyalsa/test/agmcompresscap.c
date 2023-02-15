@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2019, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * This code is used under the BSD license.
  *
  * BSD LICENSE
@@ -317,8 +317,7 @@ static void capture_samples(char *name, unsigned int card, unsigned int device,
     }
 
     /* set device/audio_intf media config mixer control */
-    if (set_agm_device_media_config(mixer, dev_config->ch, dev_config->rate,
-                                    dev_config->bits, intf_name)) {
+    if (set_agm_device_media_config(mixer, intf_name, dev_config)) {
         printf("Failed to set device media config\n");
         goto mixer_exit;
     }
