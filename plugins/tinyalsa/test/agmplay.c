@@ -69,7 +69,7 @@ static int close = 0;
 
 void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned int *device_kv,
                  unsigned int stream_kv, unsigned int instance_kv, unsigned int *devicepp_kv,
-                 struct chunk_fmt fmt, bool haptics, char **intf_name, int intf_num);
+                 struct chunk_fmt fmt, bool haptics, char **intf_name, int intf_num, bool is_24_LE);
 
 void stream_close(int sig)
 {
@@ -86,7 +86,10 @@ static void usage(void)
            " [-dkv device_kv] : Can be multiple if num_intf is more than 1\n"
            " [-dppkv deviceppkv] : Assign 0 if no device pp in the graph\n"
            " [-ikv instance_kv] :  Assign 0 if no instance kv in the graph\n"
-           " [-skv stream_kv] [-h haptics usecase]\n");
+           " [-skv stream_kv] [-h haptics usecase]\n"
+           " [is_24_LE] : [0-1] Only to be used if user wants to play S24_LE clip\n"
+           " 0: If clip bps is 32, and format is S32_LE\n"
+           " 1: If clip bps is 24, and format is S24_LE\n");
 }
 
 int main(int argc, char **argv)
@@ -105,6 +108,7 @@ int main(int argc, char **argv)
     char **intf_name = NULL;
     char *filename;
     int more_chunks = 1, ret = 0;
+    bool is_24_LE = false;
     unsigned int *devicepp_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
     unsigned int *device_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
 
@@ -223,6 +227,11 @@ int main(int argc, char **argv)
                     devicepp_kv[i] = convert_char_to_hex(*argv);
                 }
             }
+        } else if (strcmp(*argv, "-is_24_LE") == 0) {
+            argv++;
+            if (*argv) {
+                is_24_LE = atoi(*argv);
+            }
         } else if (strcmp(*argv, "-help") == 0) {
             usage();
         }
@@ -234,7 +243,7 @@ int main(int argc, char **argv)
         return 1;
 
     play_sample(file, card, device, device_kv, stream_kv, instance_kv, devicepp_kv,
-                 chunk_fmt, haptics, intf_name, intf_num);
+                 chunk_fmt, haptics, intf_name, intf_num, is_24_LE);
 
     fclose(file);
     if (device_kv)
@@ -249,7 +258,7 @@ int main(int argc, char **argv)
 
 void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned int *device_kv,
                  unsigned int stream_kv, unsigned int instance_kv, unsigned int *devicepp_kv,
-                 struct chunk_fmt fmt, bool haptics, char **intf_name, int intf_num)
+                 struct chunk_fmt fmt, bool haptics, char **intf_name, int intf_num, bool is_24_LE)
 {
     struct pcm_config config;
     struct pcm *pcm;
@@ -279,9 +288,12 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
     config.rate = fmt.sample_rate;
     config.period_size = 1024;
     config.period_count = 4;
-    if (fmt.bits_per_sample == 32)
-        config.format = PCM_FORMAT_S32_LE;
-    else if (fmt.bits_per_sample == 24)
+    if (fmt.bits_per_sample == 32) {
+        if (is_24_LE)
+            config.format = PCM_FORMAT_S24_LE;
+        else
+            config.format = PCM_FORMAT_S32_LE;
+    } else if (fmt.bits_per_sample == 24)
         config.format = PCM_FORMAT_S24_3LE;
     else if (fmt.bits_per_sample == 16)
         config.format = PCM_FORMAT_S16_LE;

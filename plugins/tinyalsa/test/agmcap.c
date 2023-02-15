@@ -84,7 +84,10 @@ static void usage(void)
            " [-n n_periods] [-T capture time] [-i intf_name] [-dkv device_kv]\n"
            " [-dppkv deviceppkv] : Assign 0 if no device pp in the graph\n"
            " [-ikv instance_kv] :  Assign 0 if no instance kv in the graph\n"
-           " [-skv stream_kv]\n");
+           " [-skv stream_kv]\n"
+           " [is_24_LE] : [0-1] Only to be used if user wants to record 32 bps clip\n"
+           " 0: If bps is 32, and format should be S32_LE\n"
+           " 1: If bps is 24, and format should be S24_LE\n");
 }
 
 int main(int argc, char **argv)
@@ -108,7 +111,7 @@ int main(int argc, char **argv)
     unsigned int devicepp_kv = 0;
     unsigned int stream_kv = 0;
     unsigned int instance_kv = INSTANCE_1;
-
+    bool is_24_LE = false;
 
     if (argc < 2) {
         usage();
@@ -176,6 +179,10 @@ int main(int argc, char **argv)
             argv++;
             if (*argv)
                 devicepp_kv = convert_char_to_hex(*argv);
+        } else if (strcmp(*argv, "-is_24_LE") == 0) {
+            argv++;
+            if (*argv)
+                is_24_LE = atoi(*argv);
         } else if (strcmp(*argv, "-help") == 0) {
             usage();
         }
@@ -194,10 +201,13 @@ int main(int argc, char **argv)
 
     switch (bits) {
     case 32:
-        format = PCM_FORMAT_S32_LE;
+        if (is_24_LE)
+            format = PCM_FORMAT_S24_LE;
+        else
+            format = PCM_FORMAT_S32_LE;
         break;
     case 24:
-        format = PCM_FORMAT_S24_LE;
+        format = PCM_FORMAT_S24_3LE;
         break;
     case 16:
         format = PCM_FORMAT_S16_LE;
@@ -321,7 +331,7 @@ unsigned int capture_sample(FILE *file, unsigned int card, unsigned int device,
         printf("MFC not present for this graph\n");
     } else {
         if (configure_mfc(mixer, device, intf_name, TAG_STREAM_MFC,
-                     STREAM_PCM, rate, channels, pcm_format_to_bits(format), miid)) {
+                     STREAM_PCM, rate, channels, get_pcm_bit_width(format), miid)) {
             printf("Failed to configure stream mfc\n");
             goto err_close_mixer;
         }
