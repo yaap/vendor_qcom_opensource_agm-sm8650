@@ -1,6 +1,5 @@
 /*
 ** Copyright (c) 2019, 2021, The Linux Foundation. All rights reserved.
-** Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
 **
 ** Copyright 2011, The Android Open Source Project
 **
@@ -26,7 +25,11 @@
 ** LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 ** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 ** DAMAGE.
-**/
+**
+** Changes from Qualcomm Innovation Center are provided under the following license:
+** Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+** SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
 
 #include <errno.h>
 #include <tinyalsa/asoundlib.h>
@@ -69,7 +72,7 @@ static int close = 0;
 
 void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned int *device_kv,
                  unsigned int stream_kv, unsigned int instance_kv, unsigned int *devicepp_kv,
-                 struct chunk_fmt fmt, bool haptics, char **intf_name, int intf_num);
+                 struct chunk_fmt fmt, bool haptics, char **intf_name, int intf_num, bool is_24_LE);
 
 void stream_close(int sig)
 {
@@ -86,7 +89,10 @@ static void usage(void)
            " [-dkv device_kv] : Can be multiple if num_intf is more than 1\n"
            " [-dppkv deviceppkv] : Assign 0 if no device pp in the graph\n"
            " [-ikv instance_kv] :  Assign 0 if no instance kv in the graph\n"
-           " [-skv stream_kv] [-h haptics usecase]\n");
+           " [-skv stream_kv] [-h haptics usecase]\n"
+           " [is_24_LE] : [0-1] Only to be used if user wants to play S24_LE clip\n"
+           " 0: If clip bps is 32, and format is S32_LE\n"
+           " 1: If clip bps is 24, and format is S24_LE\n");
 }
 
 int main(int argc, char **argv)
@@ -105,6 +111,7 @@ int main(int argc, char **argv)
     char **intf_name = NULL;
     char *filename;
     int more_chunks = 1, ret = 0;
+    bool is_24_LE = false;
     unsigned int *devicepp_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
     unsigned int *device_kv = (unsigned int *) malloc(intf_num * sizeof(unsigned int));
 
@@ -223,6 +230,11 @@ int main(int argc, char **argv)
                     devicepp_kv[i] = convert_char_to_hex(*argv);
                 }
             }
+        } else if (strcmp(*argv, "-is_24_LE") == 0) {
+            argv++;
+            if (*argv) {
+                is_24_LE = atoi(*argv);
+            }
         } else if (strcmp(*argv, "-help") == 0) {
             usage();
         }
@@ -234,7 +246,7 @@ int main(int argc, char **argv)
         return 1;
 
     play_sample(file, card, device, device_kv, stream_kv, instance_kv, devicepp_kv,
-                 chunk_fmt, haptics, intf_name, intf_num);
+                 chunk_fmt, haptics, intf_name, intf_num, is_24_LE);
 
     fclose(file);
     if (device_kv)
@@ -249,7 +261,7 @@ int main(int argc, char **argv)
 
 void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned int *device_kv,
                  unsigned int stream_kv, unsigned int instance_kv, unsigned int *devicepp_kv,
-                 struct chunk_fmt fmt, bool haptics, char **intf_name, int intf_num)
+                 struct chunk_fmt fmt, bool haptics, char **intf_name, int intf_num, bool is_24_LE)
 {
     struct pcm_config config;
     struct pcm *pcm;
@@ -279,9 +291,12 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
     config.rate = fmt.sample_rate;
     config.period_size = 1024;
     config.period_count = 4;
-    if (fmt.bits_per_sample == 32)
-        config.format = PCM_FORMAT_S32_LE;
-    else if (fmt.bits_per_sample == 24)
+    if (fmt.bits_per_sample == 32) {
+        if (is_24_LE)
+            config.format = PCM_FORMAT_S24_LE;
+        else
+            config.format = PCM_FORMAT_S32_LE;
+    } else if (fmt.bits_per_sample == 24)
         config.format = PCM_FORMAT_S24_3LE;
     else if (fmt.bits_per_sample == 16)
         config.format = PCM_FORMAT_S16_LE;
@@ -309,12 +324,19 @@ void play_sample(FILE *file, unsigned int card, unsigned int device, unsigned in
             printf("Invalid input, entry not found for : %s\n", intf_name[index]);
             fclose(file);
         }
-        printf("Backend %s rate ch bit : %d, %d, %d\n", intf_name[index],
-            dev_config[index].rate, dev_config[index].ch, dev_config[index].bits);
+        if (dev_config[index].format != PCM_FORMAT_INVALID) {
+            printf("Valid format from backend_conf %d\n", dev_config[index].format);
+            /* Updating bitwitdh based on format to avoid mismatch between bitwidth
+             * and format, as device bw will be used to configure MFC.
+             */
+            dev_config[index].bits = get_pcm_bit_width(dev_config[index].format);
+        }
+        printf("Backend %s rate ch bit fmt : %d, %d, %d %d\n", intf_name[index],
+            dev_config[index].rate, dev_config[index].ch, dev_config[index].bits,
+            dev_config[index].format);
 
         /* set device/audio_intf media config mixer control */
-        if (set_agm_device_media_config(mixer, dev_config[index].ch, dev_config[index].rate,
-                                    dev_config[index].bits, intf_name[index])) {
+        if (set_agm_device_media_config(mixer, intf_name[index], &dev_config[index])) {
             printf("Failed to set device media config\n");
             goto err_close_mixer;
         }

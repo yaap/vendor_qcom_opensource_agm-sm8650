@@ -27,37 +27,8 @@
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **
 ** Changes from Qualcomm Innovation Center are provided under the following license:
-** Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
-**
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted (subject to the limitations in the
-** disclaimer below) provided that the following conditions are met:
-**
-**     * Redistributions of source code must retain the above copyright
-**       notice, this list of conditions and the following disclaimer.
-**
-**     * Redistributions in binary form must reproduce the above
-**       copyright notice, this list of conditions and the following
-**       disclaimer in the documentation and/or other materials provided
-**       with the distribution.
-**
-**     * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
-**       contributors may be used to endorse or promote products derived
-**       from this software without specific prior written permission.
-**
-** NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
-** GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
-** HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
-** WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-** MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-** ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-** DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-** GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-** INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
-** IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-** OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+** Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+** SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
 #include <errno.h>
@@ -290,6 +261,7 @@ void voice_ui_test(unsigned int card, unsigned int device, unsigned int audio_in
     char *ec_intf_name = NULL;
     struct pcm_config config;
     struct pcm *pcm;
+    struct device_config dev_config;
     int ret = 0;
     enum pcm_format format = PCM_FORMAT_S16_LE;
     uint32_t miid = 0, param_size = 0;
@@ -306,6 +278,10 @@ void voice_ui_test(unsigned int card, unsigned int device, unsigned int audio_in
     config.silence_threshold = 0;
     stream_kv = stream_kv ? stream_kv : VOICE_UI;
 
+    dev_config.rate = config.rate;
+    dev_config.ch = config.channels;
+    dev_config.bits = get_pcm_bit_width(config.format);
+    dev_config.format = config.format;
     mixer = mixer_open(card);
     if (!mixer) {
         printf("Failed to open mixer\n");
@@ -313,8 +289,7 @@ void voice_ui_test(unsigned int card, unsigned int device, unsigned int audio_in
     }
 
     /* set device/audio_intf media config mixer control */
-    if (set_agm_device_media_config(mixer, config.channels, config.rate,
-                                    pcm_format_to_bits(format), intf_name)) {
+    if (set_agm_device_media_config(mixer, intf_name, &dev_config)) {
         printf("Failed to set device media config\n");
         goto err_close_mixer;
     }

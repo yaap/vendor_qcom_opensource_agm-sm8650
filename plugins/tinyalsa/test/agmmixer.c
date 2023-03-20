@@ -25,45 +25,12 @@
 ** WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 ** OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-**/
-
-/*
-* Changes from Qualcomm Innovation Center are provided under the following license:
-*
-* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted (subject to the limitations in the
-* disclaimer below) provided that the following conditions are met:
-*
-*    * Redistributions of source code must retain the above copyright
-*      notice, this list of conditions and the following disclaimer.
-*
-*    * Redistributions in binary form must reproduce the above
-*      copyright notice, this list of conditions and the following
-*      disclaimer in the documentation and/or other materials provided
-*      with the distribution.
-*
-*    * Neither the name of Qualcomm Innovation Center, Inc. nor the names of its
-*      contributors may be used to endorse or promote products derived
-*      from this software without specific prior written permission.
-*
-* NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
-* GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
-* HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
-* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-* IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-* GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
-* IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-* OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-* IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+**
+** Changes from Qualcomm Innovation Center are provided under the following license:
+** Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+** SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
-#include <errno.h>
 #include <expat.h>
 #include <tinyalsa/asoundlib.h>
 #include <sound/asound.h>
@@ -147,7 +114,7 @@ unsigned int slot_mask_map[5] = { 0, SLOT_MASK1, SLOT_MASK3, SLOT_MASK7, SLOT_MA
 
 #define PADDING_8BYTE_ALIGN(x)  ((((x) + 7) & 7) ^ 7)
 
-static unsigned int  bits_to_alsa_format(unsigned int bits)
+static unsigned int bits_to_sndrv_format(unsigned int bits)
 {
     switch (bits) {
     case 32:
@@ -162,9 +129,72 @@ static unsigned int  bits_to_alsa_format(unsigned int bits)
     };
 }
 
+static unsigned int alsa_to_sndrv_format(enum pcm_format fmt)
+{
+    switch (fmt) {
+    case PCM_FORMAT_S32_LE:
+        return SNDRV_PCM_FORMAT_S32_LE;
+    case PCM_FORMAT_S8:
+        return SNDRV_PCM_FORMAT_S8;
+    case PCM_FORMAT_S24_3LE:
+        return SNDRV_PCM_FORMAT_S24_3LE;
+    case PCM_FORMAT_S24_LE:
+        return SNDRV_PCM_FORMAT_S24_LE;
+    default:
+    case PCM_FORMAT_S16_LE:
+        return SNDRV_PCM_FORMAT_S16_LE;
+    };
+}
+
+static enum pcm_format get_pcm_format(char *str)
+{
+    if (!strncmp(str, "PCM_FORMAT_S16_LE", strlen("PCM_FORMAT_S16_LE"))) {
+        return PCM_FORMAT_S16_LE;
+    } else if (!strncmp(str, "PCM_FORMAT_S32_LE", strlen("PCM_FORMAT_S32_LE"))) {
+        return PCM_FORMAT_S32_LE;
+    } else if (!strncmp(str, "PCM_FORMAT_S8", strlen("PCM_FORMAT_S8"))) {
+        return PCM_FORMAT_S8;
+    } else if (!strncmp(str, "PCM_FORMAT_S24_LE", strlen("PCM_FORMAT_S24_LE"))) {
+        return PCM_FORMAT_S24_LE;
+    } else if (!strncmp(str, "PCM_FORMAT_S24_3LE", strlen("PCM_FORMAT_S24_3LE"))) {
+        return PCM_FORMAT_S24_3LE;
+    } else {
+        return PCM_FORMAT_INVALID;
+    }
+}
+
+int get_pcm_bit_width(enum pcm_format fmt_id)
+{
+    int bit_width = 16;
+
+    switch (fmt_id) {
+    case PCM_FORMAT_S24_3LE:
+    /*
+     *This api returns the number of audio data bit width specific to the format
+     *e.g. In S24_LE, even if the number of bytes is 4, the audio data is only in 3 bytes
+     *Hence we return 24 as the bit_width, whereas the bitspersample for this format would
+     *return 32
+     */
+    case PCM_FORMAT_S24_LE:
+        bit_width = 24;
+        break;
+    case PCM_FORMAT_S32_LE:
+        bit_width = 32;
+        break;
+    case PCM_FORMAT_S8:
+        bit_width = 8;
+    case PCM_FORMAT_S16_LE:
+    default:
+        break;
+    }
+
+    return bit_width;
+}
+
 void start_tag(void *userdata, const XML_Char *tag_name, const XML_Char **attr)
 {
     struct device_config *config = (struct device_config *)userdata;
+    enum pcm_format fmt;
 
     if (strncmp(tag_name, "device", strlen("device")) != 0)
         return;
@@ -185,12 +215,23 @@ void start_tag(void *userdata, const XML_Char *tag_name, const XML_Char **attr)
     }
 
     if (strcmp(attr[6], "bits") != 0) {
-        printf("bits not found");
+        printf("bits not found\n");
         return;
     }
 
     if (strncmp(config->name, attr[1], sizeof(config->name)))
         return;
+
+    if (attr[8]) {
+        if (strcmp(attr[8], "format") == 0) {
+            printf("PCM format found\n");
+            fmt = get_pcm_format(attr[9]);
+            if (fmt != PCM_FORMAT_INVALID && fmt < PCM_FORMAT_MAX)
+                config->format = fmt;
+        }
+    } else {
+           config->format = PCM_FORMAT_INVALID;
+    }
 
     config->rate = atoi(attr[3]);
     config->ch = atoi(attr[5]);
@@ -200,6 +241,7 @@ void start_tag(void *userdata, const XML_Char *tag_name, const XML_Char **attr)
 void start_group_tag(void *userdata, const XML_Char *tag_name, const XML_Char **attr)
 {
     struct group_config *config = (struct group_config *)userdata;
+    enum pcm_format fmt;
 
     if (strncmp(tag_name, "group_device", strlen("group_device")) != 0)
         return;
@@ -220,18 +262,28 @@ void start_group_tag(void *userdata, const XML_Char *tag_name, const XML_Char **
     }
 
     if (strcmp(attr[6], "bits") != 0) {
-        printf("bits not found");
+        printf("bits not found\n");
         return;
     }
 
     if (strcmp(attr[8], "slot_mask") != 0) {
-        printf("slot_mask not found");
+        printf("slot_mask not found\n");
         return;
     }
 
     if (strncmp(config->name, attr[1], sizeof(config->name)))
         return;
 
+    if (attr[10]) {
+        if (strcmp(attr[10], "format") == 0) {
+            printf("PCM format found\n");
+            fmt = get_pcm_format(attr[11]);
+            if (fmt != PCM_FORMAT_INVALID && fmt < PCM_FORMAT_MAX)
+                config->format = fmt;
+        }
+    } else {
+        config->format = PCM_FORMAT_INVALID;
+    }
     config->rate = atoi(attr[3]);
     config->ch = atoi(attr[5]);
     config->bits = atoi(attr[7]);
@@ -386,7 +438,10 @@ int set_agm_group_device_config(struct mixer *mixer, char *intf_name, struct gro
 
     grp_config[0] = config->rate;
     grp_config[1] = config->ch;
-    grp_config[2] = bits_to_alsa_format(config->bits);
+    if (config->format == PCM_FORMAT_INVALID)
+        grp_config[2] = bits_to_sndrv_format(config->bits);
+    else
+        grp_config[2] = alsa_to_sndrv_format(config->format);
     grp_config[3] = AGM_DATA_FORMAT_FIXED_POINT;
     grp_config[4] = config->slot_mask;
 
@@ -461,8 +516,7 @@ done:
     return ret;
 }
 
-int set_agm_device_media_config(struct mixer *mixer, unsigned int channels,
-                                unsigned int rate, unsigned int bits, char *intf_name)
+int set_agm_device_media_config(struct mixer *mixer, char *intf_name, struct device_config *config)
 {
     char *control = "rate ch fmt";
     char *mixer_str;
@@ -486,9 +540,12 @@ int set_agm_device_media_config(struct mixer *mixer, unsigned int channels,
         return ENOENT;
     }
 
-    media_config[0] = rate;
-    media_config[1] = channels;
-    media_config[2] = bits_to_alsa_format(bits);
+    media_config[0] = config->rate;
+    media_config[1] = config->ch;
+    if (config->format == PCM_FORMAT_INVALID)
+        media_config[2] = bits_to_sndrv_format(config->bits);
+    else
+        media_config[2] = alsa_to_sndrv_format(config->format);
     media_config[3] = AGM_DATA_FORMAT_FIXED_POINT;
 
     ret = mixer_ctl_set_array(ctl, &media_config, sizeof(media_config)/sizeof(media_config[0]));

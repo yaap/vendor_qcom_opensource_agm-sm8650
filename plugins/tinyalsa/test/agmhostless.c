@@ -1,6 +1,5 @@
 /*
 ** Copyright (c) 2019, The Linux Foundation. All rights reserved.
-** Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -26,7 +25,11 @@
 ** WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 ** OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-**/
+**
+** Changes from Qualcomm Innovation Center are provided under the following license:
+** Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+** SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
 
 #include <tinyalsa/asoundlib.h>
 #include <stdio.h>
@@ -241,14 +244,12 @@ void play_loopback(unsigned int card, unsigned int p_device, unsigned int c_devi
     }
 
     /* set device/audio_intf media config mixer control */
-    if (set_agm_device_media_config(mixer, p_config->ch, p_config->rate,
-                                    p_config->bits, p_intf_name)) {
+    if (set_agm_device_media_config(mixer, p_intf_name, p_config)) {
         printf("Failed to set playback device media config\n");
         goto err_close_mixer;
     }
 
-    if (set_agm_device_media_config(mixer, cap_config->ch, cap_config->rate,
-                                    cap_config->bits, c_intf_name)) {
+    if (set_agm_device_media_config(mixer, c_intf_name, cap_config)) {
         printf("Failed to set capture device media config\n");
         goto err_close_mixer;
     }
