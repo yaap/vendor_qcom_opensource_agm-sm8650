@@ -1294,6 +1294,74 @@ done:
     return ret;
 }
 
+int configure_aac_encoder(struct module_info *mod,
+                                          struct graph_obj *graph_obj){
+    int ret = 0;
+    struct session_obj *sess_obj = graph_obj->sess_obj;
+    struct apm_module_param_data_t *header;
+    struct param_id_aac_enc_cutoff_freq_config_t *cut_off_frequency;
+    uint8_t *payload = NULL;
+    size_t payload_size = 0;
+    size_t size_apm_module = sizeof(struct apm_module_param_data_t);
+    size_t size_cutoff_freq_config =
+        sizeof(struct param_id_aac_enc_cutoff_freq_config_t);
+    size_t size_apm_and_size_cutoff_freq =
+        size_apm_module + size_cutoff_freq_config;
+
+    if (sess_obj->stream_config.codec.aac_enc.global_cutoff_freq <= 0){
+        AGM_LOGD("AAC cutoff frequency ignored or not configured");
+        return 0;
+    }
+
+    /**
+     * For Encoder module, PARAM_ID_AAC_CUTOFF_FREQ_CONFIG
+     * configuration: optional
+     * */
+    payload_size = size_apm_and_size_cutoff_freq;
+    /*ensure that the payloadszie is byte multiple atleast*/
+    ALIGN_PAYLOAD(payload_size, 8);
+    payload = (uint8_t *)calloc(1, payload_size);
+    if (!payload) {
+        AGM_LOGE("Not enough memory for payload");
+        ret = -ENOMEM;
+        goto exit;
+    }
+    header = (struct apm_module_param_data_t *)(payload);
+    header->module_instance_id = mod->miid;
+    header->param_id = PARAM_ID_AAC_CUTOFF_FREQ_CONFIG;
+    header->error_code = 0x0;
+    header->param_size = size_cutoff_freq_config;
+    cut_off_frequency =
+        (struct param_id_aac_enc_cutoff_freq_config_t *)(payload +
+                                                         size_apm_module);
+    cut_off_frequency->freq_cutoff_mode = 1;  // global cutoff frquency
+    cut_off_frequency->global_cutoff_freq =
+        sess_obj->stream_config.codec.aac_enc.global_cutoff_freq;
+
+    ret = gsl_set_custom_config(graph_obj->graph_handle, payload, payload_size);
+    if (ret != 0) {
+        ret = ar_err_get_lnx_err_code(ret);
+        AGM_LOGE(
+            "custom_config command for module %d with "
+            "PARAM_ID_AAC_CUTOFF_FREQ_CONFIG failed with error %d",
+            mod->tag, ret);
+        goto exit;
+    } else {
+        AGM_LOGD("AAC cutoff frequency requested: %d",
+                 cut_off_frequency->global_cutoff_freq);
+        free(payload);
+        payload = NULL;
+    }
+
+exit:
+    if (payload) {
+        free(payload);
+        payload = NULL;
+    }
+    AGM_LOGV("Exit: %d", ret);
+    return ret;
+}
+
 /**
  *  codec specific encoder config only for TX type
  */
@@ -1302,7 +1370,6 @@ int configure_encoder_output_media_format(struct module_info *mod,
     int ret = 0;
     struct session_obj *sess_obj = graph_obj->sess_obj;
     struct apm_module_param_data_t *header;
-    struct param_id_encoder_output_config_t *enc_out_conf_param;
     uint8_t *payload = NULL;
     size_t payload_size = 0;
     size_t size_apm_module = sizeof(struct apm_module_param_data_t);
@@ -1425,6 +1492,10 @@ int configure_encoder_output_media_format(struct module_info *mod,
         AGM_LOGD("AAC bitrate: %d", bitrate_param->bitrate);
         free(payload);
         payload = NULL;
+    }
+
+    if (sess_obj->in_media_config.format == AGM_FORMAT_AAC) {
+        ret = configure_aac_encoder(mod, graph_obj);
     }
 
 err:
