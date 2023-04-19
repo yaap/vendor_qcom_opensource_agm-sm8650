@@ -596,6 +596,8 @@ static int amp_create_pcm_info_from_card(struct amp_dev_info *adi,
 
     for (i = 0; i < num_pcms; i++) {
         void *pcm_node = pcm_node_list[i];
+        val = 0;
+
         snd_card_def_get_int(pcm_node, dir, &val);
         if (val == 0)
             continue;
@@ -684,13 +686,17 @@ static int amp_get_pcm_info(struct amp_priv *amp_priv)
     /* count TX and RX PCMs + Comprs*/
     for (i = 0; i < total_pcms; i++) {
         void *pcm_node = pcm_node_list[i];
+        val = 0;
+
         snd_card_def_get_int(pcm_node, "playback", &val);
         if (val == 1)
             rx_adi->count++;
     }
-    val = 0;
+
     for (i = 0; i < total_pcms; i++) {
         void *pcm_node = pcm_node_list[i];
+        val = 0;
+
         snd_card_def_get_int(pcm_node, "capture", &val);
         if (val == 1)
             tx_adi->count++;
