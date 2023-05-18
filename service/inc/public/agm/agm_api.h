@@ -289,6 +289,8 @@ struct agm_session_wmapro_dec {
  * OPUS decoder parameters
  */
 struct agm_session_opus_dec {
+    uint16_t bitstream_format;
+    uint16_t payload_type;
     uint8_t version;
     uint8_t num_channels;
     uint16_t pre_skip;
