@@ -185,6 +185,7 @@ static int get_media_bit_width(struct session_obj *sess_obj,
         break;
     case AGM_FORMAT_MP3:
     case AGM_FORMAT_AAC:
+    case AGM_FORMAT_OPUS:
     default:
         break;
     }
@@ -1002,6 +1003,10 @@ static int get_media_fmt_id_and_size(enum agm_media_format fmt_id,
         format_size = sizeof(struct payload_media_fmt_wmapro_t);
         *real_fmt_id = MEDIA_FMT_WMAPRO;
         break;
+    case AGM_FORMAT_OPUS:
+        format_size = sizeof(struct payload_media_fmt_opus_t);
+        *real_fmt_id = MEDIA_FMT_OPUS;
+        break;
     case AGM_FORMAT_VORBIS:
         format_size = 0;
         *real_fmt_id = MEDIA_FMT_VORBIS;
@@ -1159,6 +1164,31 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
         AGM_LOGD("WMAPro payload: fmt:%d, ch:%d, SR:%d, bit_width:%d",
                   fmt_pl->fmt_tag, fmt_pl->num_channels,
                  fmt_pl->sample_rate, fmt_pl->bits_per_sample);
+        break;
+    }
+    case AGM_FORMAT_OPUS:
+    {
+        struct payload_media_fmt_opus_t *fmt_pl;
+        fmt_size = sizeof(struct payload_media_fmt_opus_t);
+        media_fmt_hdr->data_format = AGM_DATA_FORMAT_RAW_COMPRESSED;
+        media_fmt_hdr->fmt_id = MEDIA_FMT_ID_OPUS;
+        media_fmt_hdr->payload_size = fmt_size;
+
+        fmt_pl = (struct payload_media_fmt_opus_t*)(((uint8_t*)media_fmt_hdr) +
+            sizeof(struct media_format_t));
+        memcpy(fmt_pl, &sess_obj->stream_config.codec.opus_dec,
+               fmt_size);
+        AGM_LOGD("OPUS payload: version:%x, ch:%d, pre_skip:%d, SR:%d, "
+                 "output_gain:%d, mapping_family:%d, stream_count:%d, "
+                 "coupled_count:%d",
+                 fmt_pl->version, fmt_pl->num_channels, fmt_pl->pre_skip,
+                 fmt_pl->sample_rate, fmt_pl->output_gain,
+                 fmt_pl->mapping_family, fmt_pl->stream_count,
+                 fmt_pl->coupled_count);
+        AGM_LOGD("channel map:");
+        for (int i = 0; i < fmt_pl->num_channels; i++) {
+            AGM_LOGD("%d", fmt_pl->channel_map[i]);
+        }
         break;
     }
     default:

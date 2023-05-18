@@ -444,6 +444,13 @@ int agm_session_update_codec_config(struct agm_compress_priv *priv,
         case SND_AUDIOCODEC_VORBIS:
             media_cfg->format = AGM_FORMAT_VORBIS;
             break;
+        case SND_AUDIOCODEC_BESPOKE:
+            if (copt->generic.reserved[0] == AGM_FORMAT_OPUS) {
+                media_cfg->format = AGM_FORMAT_OPUS;
+                sess_cfg->codec.opus_dec.num_channels = params->codec.ch_in;
+                sess_cfg->codec.opus_dec.sample_rate = media_cfg->rate;
+            }
+            break;
         default:
             break;
         }
@@ -886,6 +893,7 @@ static int agm_populate_codec_caps(struct agm_compress_priv *priv)
     priv->compr_cap.codecs[codec_count++] = SND_AUDIOCODEC_WMA;
     priv->compr_cap.codecs[codec_count++] = SND_AUDIOCODEC_FLAC;
     priv->compr_cap.codecs[codec_count++] = SND_AUDIOCODEC_VORBIS;
+    priv->compr_cap.codecs[codec_count++] = SND_AUDIOCODEC_BESPOKE;
 #ifdef SND_AUDIOCODEC_ALAC
     priv->compr_cap.codecs[codec_count++] = SND_AUDIOCODEC_ALAC;
 #endif
@@ -1049,6 +1057,20 @@ void agm_session_update_codec_options(struct agm_session_config *sess_cfg,
             sess_cfg->codec.alac_dec.max_frame_bytes = copt->generic.reserved[7];
             sess_cfg->codec.alac_dec.avg_bit_rate = copt->generic.reserved[8];
             sess_cfg->codec.alac_dec.channel_layout_tag = copt->generic.reserved[9];
+            break;
+        case SND_AUDIOCODEC_BESPOKE:
+            if (copt->generic.reserved[0] == (uint8_t)AGM_FORMAT_OPUS) {
+                sess_cfg->codec.opus_dec.version = copt->generic.reserved[1];
+                sess_cfg->codec.opus_dec.num_channels = copt->generic.reserved[2];
+                sess_cfg->codec.opus_dec.pre_skip = copt->generic.reserved[3];
+                sess_cfg->codec.opus_dec.sample_rate = copt->generic.reserved[4];
+                sess_cfg->codec.opus_dec.output_gain = copt->generic.reserved[5];
+                sess_cfg->codec.opus_dec.mapping_family = copt->generic.reserved[6];
+                sess_cfg->codec.opus_dec.stream_count = copt->generic.reserved[7];
+                sess_cfg->codec.opus_dec.coupled_count = copt->generic.reserved[8];
+                memcpy(&sess_cfg->codec.opus_dec.channel_map[0], &copt->generic.reserved[9], 4);
+                memcpy(&sess_cfg->codec.opus_dec.channel_map[4], &copt->generic.reserved[10], 4);
+            }
             break;
     #endif
     #ifdef SND_AUDIOCODEC_APE

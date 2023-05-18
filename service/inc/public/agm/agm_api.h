@@ -111,6 +111,7 @@ enum agm_media_format
     AGM_FORMAT_EVRC,            /**< EVRC codec */
     AGM_FORMAT_G711,            /**< G711 codec */
     AGM_FORMAT_QCELP,            /**< G711 codec */
+    AGM_FORMAT_OPUS,            /**< OPUS codec */
     AGM_FORMAT_MAX,
 };
 
@@ -285,6 +286,22 @@ struct agm_session_wmapro_dec {
 };
 
 /**
+ * OPUS decoder parameters
+ */
+struct agm_session_opus_dec {
+    uint8_t version;
+    uint8_t num_channels;
+    uint16_t pre_skip;
+    uint32_t sample_rate;
+    uint16_t output_gain;
+    uint8_t mapping_family;
+    uint8_t stream_count;
+    uint8_t coupled_count;
+    uint8_t channel_map[8];
+    uint8_t reserved[3];
+};
+
+/**
  * Session encoder/decoder parameters
  */
 union agm_session_codec
@@ -296,6 +313,7 @@ union agm_session_codec
     struct agm_session_ape_dec ape_dec;        /**< APE decoder config */
     struct agm_session_wma_dec wma_dec;        /**< WMA decoder config */
     struct agm_session_wmapro_dec wmapro_dec;  /**< WMAPro decoder config */
+    struct agm_session_opus_dec opus_dec;      /**< OPUS decoder config */
 };
 
 /**
