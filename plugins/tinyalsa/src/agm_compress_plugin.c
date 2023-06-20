@@ -1060,16 +1060,18 @@ void agm_session_update_codec_options(struct agm_session_config *sess_cfg,
             break;
         case SND_AUDIOCODEC_BESPOKE:
             if (copt->generic.reserved[0] == (uint8_t)AGM_FORMAT_OPUS) {
-                sess_cfg->codec.opus_dec.version = copt->generic.reserved[1];
-                sess_cfg->codec.opus_dec.num_channels = copt->generic.reserved[2];
-                sess_cfg->codec.opus_dec.pre_skip = copt->generic.reserved[3];
-                sess_cfg->codec.opus_dec.sample_rate = copt->generic.reserved[4];
-                sess_cfg->codec.opus_dec.output_gain = copt->generic.reserved[5];
-                sess_cfg->codec.opus_dec.mapping_family = copt->generic.reserved[6];
-                sess_cfg->codec.opus_dec.stream_count = copt->generic.reserved[7];
-                sess_cfg->codec.opus_dec.coupled_count = copt->generic.reserved[8];
-                memcpy(&sess_cfg->codec.opus_dec.channel_map[0], &copt->generic.reserved[9], 4);
-                memcpy(&sess_cfg->codec.opus_dec.channel_map[4], &copt->generic.reserved[10], 4);
+                sess_cfg->codec.opus_dec.bitstream_format = copt->generic.reserved[1];
+                sess_cfg->codec.opus_dec.payload_type = copt->generic.reserved[2];
+                sess_cfg->codec.opus_dec.version = copt->generic.reserved[3];
+                sess_cfg->codec.opus_dec.num_channels = copt->generic.reserved[4];
+                sess_cfg->codec.opus_dec.pre_skip = copt->generic.reserved[5];
+                sess_cfg->codec.opus_dec.sample_rate = copt->generic.reserved[6];
+                sess_cfg->codec.opus_dec.output_gain = copt->generic.reserved[7];
+                sess_cfg->codec.opus_dec.mapping_family = copt->generic.reserved[8];
+                sess_cfg->codec.opus_dec.stream_count = copt->generic.reserved[9];
+                sess_cfg->codec.opus_dec.coupled_count = copt->generic.reserved[10];
+                memcpy(&sess_cfg->codec.opus_dec.channel_map[0], &copt->generic.reserved[11], 4);
+                memcpy(&sess_cfg->codec.opus_dec.channel_map[4], &copt->generic.reserved[12], 4);
             }
             break;
     #endif

@@ -1195,6 +1195,10 @@ Return<int32_t> AGM::ipc_agm_client_register_callback(const sp<IAGMCallback>& cb
     client_info *client_handle = NULL;
     struct listnode* node = NULL;
 
+    if (cb == NULL) {
+        ALOGE("%s: Invalid cb binder request\n", __func__);
+        return -EINVAL;
+    }
     pthread_mutex_lock(&client_list_lock);
     list_for_each(node, &client_list) {
         client_handle = node_to_item(node, client_info, list);

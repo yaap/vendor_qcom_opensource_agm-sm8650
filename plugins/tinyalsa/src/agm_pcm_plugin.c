@@ -74,6 +74,7 @@ struct pcm_plugin_pos_buf_info {
     unsigned int boundary;       /* pcm boundary */
     snd_pcm_uframes_t hw_ptr;    /* RO: hw ptr (0...boundary-1) */
     snd_pcm_uframes_t hw_ptr_base;
+    unsigned int crossed_boundary_cnt;
     struct timespec tstamp;
     snd_pcm_uframes_t appl_ptr;  /* RW: appl ptr (0...boundary-1) */
     snd_pcm_uframes_t avail_min; /* RW: min available frames for wakeup */
@@ -335,7 +336,11 @@ static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
         pos = (circ_buf_pos / period_size) * period_size;
         old_hw_ptr = agm_pcm_plugin_get_hw_ptr(priv);
         hw_base = priv->pos_buf->hw_ptr_base;
-        new_hw_ptr = hw_base + pos;
+
+        // Update new_hw_ptr
+        __builtin_uaddl_overflow(hw_base, pos, &new_hw_ptr);
+        __builtin_uaddl_overflow(new_hw_ptr,
+            priv->pos_buf->boundary * priv->pos_buf->crossed_boundary_cnt, &new_hw_ptr);
 
         // Set delta_wall_clk_us only if cached wall clk is non-zero
         if (priv->pos_buf->wall_clk_msw || priv->pos_buf->wall_clk_lsw) {
@@ -363,9 +368,13 @@ static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
         // has crossed old_hw_ptr atleast once if not more
         if (crossed_boundary > 0) {
             hw_base += (crossed_boundary * priv->total_size_frames);
-            if (hw_base >= priv->pos_buf->boundary)
+            if (hw_base >= priv->pos_buf->boundary) {
+                priv->pos_buf->crossed_boundary_cnt += hw_base / priv->pos_buf->boundary;
                 hw_base = 0;
-            new_hw_ptr = hw_base + pos;
+            }
+            __builtin_uaddl_overflow(hw_base, pos, &new_hw_ptr);
+            __builtin_uaddl_overflow(new_hw_ptr,
+                priv->pos_buf->boundary * priv->pos_buf->crossed_boundary_cnt, &new_hw_ptr);
             priv->pos_buf->hw_ptr_base = hw_base;
             AGM_LOGD("%s: crossed_boundary = %u, new_hw_ptr=%ld \n",
                                                 __func__, crossed_boundary, new_hw_ptr);
@@ -376,9 +385,13 @@ static int agm_pcm_plugin_update_hw_ptr(struct agm_pcm_priv *priv)
         } else {
             if (new_hw_ptr < old_hw_ptr) {
                 hw_base += priv->total_size_frames;
-                if (hw_base >= priv->pos_buf->boundary)
+                if (hw_base >= priv->pos_buf->boundary) {
                     hw_base = 0;
-                new_hw_ptr = hw_base + pos;
+                    priv->pos_buf->crossed_boundary_cnt += 1;
+                }
+                __builtin_uaddl_overflow(hw_base, pos, &new_hw_ptr);
+                __builtin_uaddl_overflow(new_hw_ptr,
+                    priv->pos_buf->boundary * priv->pos_buf->crossed_boundary_cnt, &new_hw_ptr);
                 priv->pos_buf->hw_ptr_base = hw_base;
             }
         }
@@ -436,6 +449,7 @@ static int agm_pcm_plugin_reset(struct pcm_plugin *plugin)
     priv->pos_buf->hw_ptr_base = 0;
     priv->pos_buf->wall_clk_msw = 0;
     priv->pos_buf->wall_clk_lsw = 0;
+    priv->pos_buf->crossed_boundary_cnt = 0;
     AGM_LOGD("%s: reset hw_ptr to %d \n", __func__, priv->pos_buf->hw_ptr);
     return ret;
 }
@@ -709,8 +723,11 @@ static snd_pcm_sframes_t agm_pcm_get_avail(struct pcm_plugin *plugin)
 {
     struct agm_pcm_priv *priv = plugin->priv;
     snd_pcm_sframes_t avail = 0;
+    enum direction dir;
 
-    if (plugin->mode & PCM_OUT) {
+    dir = (plugin->mode & PCM_IN) ? TX : RX;
+
+    if (dir == RX) {
         avail = priv->pos_buf->hw_ptr +
             priv->total_size_frames -
             priv->pos_buf->appl_ptr;
@@ -719,7 +736,7 @@ static snd_pcm_sframes_t agm_pcm_get_avail(struct pcm_plugin *plugin)
             avail += priv->pos_buf->boundary;
         else if ((snd_pcm_uframes_t)avail >= priv->pos_buf->boundary)
             avail -= priv->pos_buf->boundary;
-    } else if (plugin->mode & PCM_IN) {
+    } else if (dir == TX) {
         __builtin_sub_overflow(priv->pos_buf->hw_ptr, priv->pos_buf->appl_ptr, &avail);
         if (avail < 0)
             avail += priv->pos_buf->boundary;

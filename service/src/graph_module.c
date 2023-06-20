@@ -1178,10 +1178,11 @@ int  set_compressed_media_format(enum agm_media_format fmt_id,
             sizeof(struct media_format_t));
         memcpy(fmt_pl, &sess_obj->stream_config.codec.opus_dec,
                fmt_size);
-        AGM_LOGD("OPUS payload: version:%x, ch:%d, pre_skip:%d, SR:%d, "
-                 "output_gain:%d, mapping_family:%d, stream_count:%d, "
+        AGM_LOGD("OPUS payload: bitstream_format:%d payload_type:%d version:%d, ch:%d, "
+                 "pre_skip:%d, SR:%d, output_gain:%d, mapping_family:%d, stream_count:%d, "
                  "coupled_count:%d",
-                 fmt_pl->version, fmt_pl->num_channels, fmt_pl->pre_skip,
+                 fmt_pl->bitstream_format, fmt_pl->payload_type, fmt_pl->version,
+                 fmt_pl->num_channels, fmt_pl->pre_skip,
                  fmt_pl->sample_rate, fmt_pl->output_gain,
                  fmt_pl->mapping_family, fmt_pl->stream_count,
                  fmt_pl->coupled_count);

@@ -28,9 +28,10 @@
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #define LOG_TAG "agm_client_wrapper"
 
 #include <cutils/list.h>
@@ -77,8 +78,6 @@ void server_death_notifier::serviceDied(uint64_t cookie,
     agm_server_died = true;
     if (cb_ != NULL)
         cb_(cookie_);
-    // We exit the client process here, so that it also can restart
-    // leading to a fresh start on both the sides.
 }
 
 android::sp<IAGM> get_agm_server() {
