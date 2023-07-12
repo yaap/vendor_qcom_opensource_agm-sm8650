@@ -1747,6 +1747,7 @@ int configure_pcm_shared_mem_ep(struct module_info *mod,
     media_fmt_payload->endianness = PCM_LITTLE_ENDIAN;
     media_fmt_payload->bit_width = get_pcm_bit_width(sess_obj->out_media_config.format);
     media_fmt_payload->sample_rate = sess_obj->out_media_config.rate;
+    media_fmt_payload->alignment = PCM_LSB_ALIGNED;
     media_fmt_payload->num_channels = num_channels;
     media_fmt_payload->bits_per_sample =
                              GET_BITS_PER_SAMPLE(sess_obj->out_media_config.format,
