@@ -32,19 +32,22 @@ LOCAL_SRC_FILES  := \
     src/session_obj.c\
     src/device.c \
     src/utils.c \
-    src/device_hw_ep.c
+    src/device_hw_ep.c \
+    src/agm_memlogger.c
 
 LOCAL_HEADER_LIBRARIES := \
     libspf-headers \
     libutils_headers \
-    libacdb_headers
+    libacdb_headers \
+    libarmemlog_headers
 
 LOCAL_SHARED_LIBRARIES := \
     libar-gsl \
     liblog \
     liblx-osal \
     libaudioroute \
-    libats
+    libats \
+    libarmemlog
 
 #if android version is R, use qtitinyalsa lib otherwise use upstream ones
 #This assumes we would be using AR code only for Android R and subsequent versions.
