@@ -27,7 +27,7 @@
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted (subject to the limitations in the
@@ -91,6 +91,8 @@
 #ifndef MIN
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
+
+#define MAX_KVPAIR 48
 
 #ifndef memscpy
 #define memscpy(dst, dst_size, src, bytes_to_copy) (void) \
@@ -1364,6 +1366,11 @@ android::status_t BnAgmService::onTransact(uint32_t code,
         session_id = data.readUint32();
         audio_intf = data.readUint32();
         num_ckv = data.readUint32();
+        if (num_ckv > MAX_KVPAIR) {
+            AGM_LOGE("Num KVs %d more than expected: %d\n", num_ckv, MAX_KVPAIR);
+            rc = -EINVAL;
+            goto fail_ses_aud_set_cal_data;
+        }
         ckv_blob_size = num_ckv * (uint32_t)sizeof(struct agm_key_value);
         acc = (struct agm_cal_config *) calloc (1, sizeof(struct agm_cal_config)
                                                                + ckv_blob_size);
