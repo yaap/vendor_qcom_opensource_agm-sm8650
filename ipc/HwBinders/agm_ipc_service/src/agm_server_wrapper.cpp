@@ -1333,6 +1333,8 @@ Return<void> AGM::ipc_agm_session_get_buf_info(uint32_t session_id, uint32_t fla
 
     ALOGV("%s : session_id = %d\n", __func__, session_id);
 
+    memset(&buf_info, 0, sizeof(struct agm_buf_info));
+
     ret = agm_session_get_buf_info(session_id, &buf_info, flag);
     if (!ret) {
         if (flag & DATA_BUF) {
