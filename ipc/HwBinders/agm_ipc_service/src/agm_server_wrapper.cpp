@@ -696,6 +696,11 @@ Return<void> AGM::ipc_agm_get_params_from_acdb_tunnel(
     size_t size_local;
     size_local = (size_t) size;
     hidl_vec<uint8_t> payload_hidl;
+
+    if (size > payload.size()) {
+        ALOGE("%s: Invalid param", __func__);
+        return Void();
+    }
     if (size_local) {
         payload_local = (uint8_t *) calloc (1, size_local);
         if (payload_local == NULL) {
