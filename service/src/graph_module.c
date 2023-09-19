@@ -52,6 +52,7 @@
 #define GET_BITS_PER_SAMPLE(format, bit_width) \
                            (format == AGM_FORMAT_PCM_S24_LE? 32 : bit_width)
 
+/*qfactor should be set to 23 only for 24_3LE and 24_LE formats*/
 #define GET_Q_FACTOR(format, bit_width) (bit_width - 1)
 
 static void get_default_channel_map(uint8_t *channel_map, int channels)
@@ -803,6 +804,12 @@ int configure_output_media_format(struct module_info *mod,
 
     pcm_output_fmt_payload->bit_width = get_media_bit_width(sess_obj, &media_config);
 
+    /**
+     *alignment field is referred to only in case where bit width is
+     *24 and bits per sample is 32, tiny alsa only supports 24 bit
+     *in 32 word size in LSB aligned mode(AGM_FORMAT_PCM_S24_LE).
+     *Hence we hardcode this to PCM_LSB_ALIGNED;
+     */
     pcm_output_fmt_payload->alignment = PCM_LSB_ALIGNED;
     pcm_output_fmt_payload->num_channels = num_channels;
 
@@ -823,19 +830,7 @@ int configure_output_media_format(struct module_info *mod,
         pcm_output_fmt_payload->q_factor =
                              GET_Q_FACTOR(media_config.format,
                                           pcm_output_fmt_payload->bit_width);
-        if (media_config.format == AGM_FORMAT_PCM_S24_LE) {
-            /**
-             *alignment field is referred to only in case where bit width is
-             *24 and bits per sample is 32 i.e. 24_LE pcm format, Q23 for
-             *this configuration results in very low amplitude in the end recorded
-             *data, hence have Q31 as Qfactor for 24_LE, and alignment should be
-             *MSB to have Q31 for 24_LE format.
-             */
-            AGM_LOGD("24_LE capture, setting alignment as MSB and Qfactor as Q31");
-            pcm_output_fmt_payload->alignment = PCM_MSB_ALIGNED;
-            pcm_output_fmt_payload->q_factor = 31;
-        }
-        if (sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL)
+         if (sess_obj->stream_config.sess_mode == AGM_SESSION_NON_TUNNEL)
             /*
              * Setting num channels to native mode for PCM convetter
              * so that channels always match upstream decoder module
@@ -1747,6 +1742,12 @@ int configure_pcm_shared_mem_ep(struct module_info *mod,
     media_fmt_payload->endianness = PCM_LITTLE_ENDIAN;
     media_fmt_payload->bit_width = get_pcm_bit_width(sess_obj->out_media_config.format);
     media_fmt_payload->sample_rate = sess_obj->out_media_config.rate;
+    /**
+     *alignment field is referred to only in case where bit width is
+     *24 and bits per sample is 32, tiny alsa only supports 24 bit
+     *in 32 word size in LSB aligned mode(AGM_FORMAT_PCM_S24_LE).
+     *Hence we hardcode this to PCM_LSB_ALIGNED;
+     */
     media_fmt_payload->alignment = PCM_LSB_ALIGNED;
     media_fmt_payload->num_channels = num_channels;
     media_fmt_payload->bits_per_sample =
@@ -1754,14 +1755,6 @@ int configure_pcm_shared_mem_ep(struct module_info *mod,
                                                  media_fmt_payload->bit_width);
     media_fmt_payload->q_factor = GET_Q_FACTOR(sess_obj->out_media_config.format,
                                                media_fmt_payload->bit_width);
-    if (sess_obj->out_media_config.format == AGM_FORMAT_PCM_S24_LE) {
-        /**As capture path for 24_LE has MSB alignment and Q31, same configuration
-         *is needed in playback path to play the recorded data properly.
-         */
-        AGM_LOGD("24_LE playback, setting alignment as MSB and qfactor as Q31");
-        media_fmt_payload->alignment = PCM_MSB_ALIGNED;
-        media_fmt_payload->q_factor = 31;
-    }
     /**
      *#TODO:As of now channel_map is not part of media_config
      *ADD channel map part as part of the session/device media config

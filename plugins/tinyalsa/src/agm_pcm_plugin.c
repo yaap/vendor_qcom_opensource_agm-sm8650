@@ -1,6 +1,6 @@
 /*
 ** Copyright (c) 2019, 2021 The Linux Foundation. All rights reserved.
-** Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+** Copyright (c) 2022, 2023 Qualcomm Innovation Center, Inc. All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -728,9 +728,16 @@ static snd_pcm_sframes_t agm_pcm_get_avail(struct pcm_plugin *plugin)
     dir = (plugin->mode & PCM_IN) ? TX : RX;
 
     if (dir == RX) {
-        avail = priv->pos_buf->hw_ptr +
-            priv->total_size_frames -
-            priv->pos_buf->appl_ptr;
+        snd_pcm_uframes_t temp_value = 0;
+        // In first condition, if there is no overflow, temp_value holds the addition result;
+        // if there is overflow, __builtin_add_overflow returns true, then exit if clause.
+        // In second condition, if there is overflow, __builtin_sub_overflow returns true and
+        // we reset avail to 0. If there is no overflow, avail holds the final result and exit.
+        if (!__builtin_add_overflow(priv->pos_buf->hw_ptr, priv->total_size_frames,
+                &temp_value) &&
+            __builtin_sub_overflow(temp_value, priv->pos_buf->appl_ptr, &avail)) {
+            avail = 0;
+        }
 
         if (avail < 0)
             avail += priv->pos_buf->boundary;
