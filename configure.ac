@@ -40,11 +40,11 @@ fi
 
 AM_CONDITIONAL(USE_GLIB, test "x${with_glib}" = "xyes")
 
-AC_ARG_WITH([agm-no-ipc],
+AC_ARG_WITH([agm_no_ipc],
     AS_HELP_STRING([enable ipc communication to AGM (default is no)]),
-    [with_agm-no-ipc=$withval],
-    [with_agm-no-ipc=no])
-AM_CONDITIONAL([AGM_NO_IPC], [test "x${with_agm-no-ipc}" = "xyes"])
+    [with_agm_no_ipc=$withval],
+    [with_agm_no_ipc=no])
+AM_CONDITIONAL([AGM_NO_IPC], [test "x${with_agm_no_ipc}" = "xyes"])
 
 
 PKG_CHECK_MODULES([SPF], [spf])
