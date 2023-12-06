@@ -24,7 +24,7 @@ agm_sources = ./src/graph.c \
 
 lib_LTLIBRARIES = libagm.la
 libagm_la_SOURCES = $(agm_sources)
-libagm_la_LIBADD = -ltinyalsa -lar_osal -lgsl -lats
+libagm_la_LIBADD = -ltinyalsa -lar_osal -lar_gsl -lats
 
 libagm_la_CFLAGS = $(AM_CFLAGS) -DACDB_PATH=\"/etc/acdbdata/MTP/\" -DACDB_DELTA_FILE_PATH="/data/audio/delta"
 libagm_la_CFLAGS += -DCARD_STATE_UNSUPPORTED
