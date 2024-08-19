@@ -7,7 +7,7 @@ LOCAL_MODULE_TAGS   := optional
 LOCAL_VENDOR_MODULE := true
 
 LOCAL_CFLAGS        += -Wno-unused-parameter -Wno-unused-result
-LOCAL_CFLAGS        += -Wno-unused-variable
+LOCAL_CFLAGS        += -Wno-unused-variable -Wno-error=incompatible-pointer-types-discards-qualifiers
 LOCAL_SRC_FILES     := agmmixer.c
 
 LOCAL_HEADER_LIBRARIES := \
